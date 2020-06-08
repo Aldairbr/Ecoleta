@@ -1,5 +1,5 @@
-import React, { useEffect, useState, ChangeEvent } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useEffect, useState, ChangeEvent, FormEvent } from 'react'
+import { Link, useHistory } from 'react-router-dom'
 import { FiArrowLeft } from 'react-icons/fi'
 import { Map, TileLayer, Marker} from 'react-leaflet'
 import api from '../../services/api'
@@ -27,14 +27,21 @@ const CreatePoint = () => {
 
   const [items, setItems] = useState<item[]>([])
   const [ufs, setUfs] = useState<string[]>([])
+  const [selectedItems, setSelectedItems] = useState<number[]>([])
   const [cities, setCities] = useState<string[]>([])
 
   const [InitialPosition, setInitialPosition] = useState<[number, number]>([0, 0])
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    whatsapp: '',
+  })
 
   const [selectedUf, setSelectedUf] = useState('0')
   const [selectedCity, setSelectedCity] = useState('0')
   const [selectedPosition, setSelectedPosition] = useState<[number, number]>([0, 0])
 
+  const history = useHistory()
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition((position) => {
@@ -79,23 +86,66 @@ const CreatePoint = () => {
 
   function handleSelectUf(event: ChangeEvent<HTMLSelectElement>) {
     const Uf = event.target.value
-    console.log(Uf)
+  
     setSelectedUf(Uf)
   }
 
   function handleSelectCity(event: ChangeEvent<HTMLSelectElement>) {
     const city = event.target.value
-    console.log(city)
+   
     setSelectedCity(city)
   }
 
   function handleMapClick(event: LeafletMouseEvent) {
-    console.log(event.latlng)
     setSelectedPosition([
       event.latlng.lat,
       event.latlng.lng
     ])
   } 
+
+  function handleInputChange(event: ChangeEvent<HTMLInputElement>) {
+  const { name, value } = event.target
+
+    setFormData({ ...formData, [name]: value })
+  }
+
+  function handleSelectItem(id: number) {
+    const alreadySelected = selectedItems.findIndex((item) => item === id);
+
+    if (alreadySelected >= 0) {
+      const filteredItems = selectedItems.filter((item) => item !== id);
+      setSelectedItems(filteredItems);
+    } else {
+      setSelectedItems([...selectedItems, id]);
+    }
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    const { name, email, whatsapp } = formData
+    const uf = selectedUf
+    const city = selectedCity
+    const [latitude, longitude]  = selectedPosition
+    const items = selectedItems
+
+    const Data = {
+      name,
+      email,
+      whatsapp,
+      uf,
+      city,
+      latitude,
+      longitude,
+      items
+    }
+    console.log(Data)
+
+    await api.post('/points', Data)
+
+    alert('Seu ponto de coleta foi cadastrado.')
+
+    history.push('/')
+  }
 
   return (
     <div id="page-create-point">
@@ -108,7 +158,7 @@ const CreatePoint = () => {
          </Link>
 
       </header>
-      <form >
+      <form onSubmit={handleSubmit}>
         <h1>Cadastro do <br/> ponto de coleta</h1>
 
         <fieldset>
@@ -122,6 +172,7 @@ const CreatePoint = () => {
               type="text"
               name="name"
               id="name"
+              onChange={handleInputChange}
             />
           </div>
 
@@ -132,6 +183,7 @@ const CreatePoint = () => {
                 type="email"
                 name="email"
                 id="email"
+                onChange={handleInputChange}
               />
             </div>
 
@@ -141,6 +193,7 @@ const CreatePoint = () => {
                 type="text"
                 name="whatsapp"
                 id="whatsapp"
+                onChange={handleInputChange}
               />
             </div>
           </div>
@@ -210,11 +263,16 @@ const CreatePoint = () => {
           </legend>
 
           <ul className="items-grid">
-          {items.map((item) =>  
-            <li key={item.id} className="selected">
-              <img src={item.image_url} alt=""/>
+            {items.map((item) =>  
+              <li 
+                key={item.id} 
+                onClick={() => handleSelectItem(item.id)}
+                className={selectedItems.includes(item.id)? 'selected' : ''}
+              >
+                <img src={item.image_url} alt=""/>
                 <span>{item.title}</span>
-            </li>)
+            </li>
+            )
           } 
           </ul>
 
